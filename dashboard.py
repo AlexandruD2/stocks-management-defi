@@ -439,17 +439,49 @@ with tab5:
 with tab6:
     st.subheader("Volatility & Price Action Analysis")
 
-    col1, col2 = st.columns(2)
+    # Quick preset selections
+    st.markdown("### Quick Comparisons")
+    col1, col2, col3, col4, col5 = st.columns(5)
 
     with col1:
-        selected_stocks = st.multiselect(
-            "Select Stocks to Compare",
-            filtered_tickers,
-            default=filtered_tickers[:3] if len(filtered_tickers) >= 3 else filtered_tickers
-        )
+        if st.button("Tech", key="btn_tech"):
+            st.session_state.selected_stocks = ["AAPL", "MSFT", "NVDA"]
 
     with col2:
+        if st.button("Energy", key="btn_energy"):
+            st.session_state.selected_stocks = ["XOM", "CVX", "COP"]
+
+    with col3:
+        if st.button("Healthcare", key="btn_health"):
+            st.session_state.selected_stocks = ["JNJ", "UNH", "PFE"]
+
+    with col4:
+        if st.button("AI Leaders", key="btn_ai"):
+            st.session_state.selected_stocks = ["NVDA", "TSLA", "PLTR"]
+
+    with col5:
+        if st.button("Top Performers", key="btn_top"):
+            st.session_state.selected_stocks = ["CAT", "GOOGL", "MPC"]
+
+    st.divider()
+
+    # Manual stock selection
+    st.markdown("### Select Stocks Manually")
+    selected_stocks = st.multiselect(
+        "Choose stocks to analyze:",
+        ALL_TICKERS,
+        default=st.session_state.get("selected_stocks", ["NVDA", "AAPL", "JNJ"]),
+        key="stock_selector"
+    )
+
+    # Timeframe selection
+    col1, col2, col3 = st.columns(3)
+    with col1:
         days_range = st.slider("Days of History", 5, 90, 30)
+    with col2:
+        st.write("")
+    with col3:
+        st.write("")
 
     if selected_stocks:
         st.divider()
@@ -481,116 +513,95 @@ with tab6:
         if all_volatility_data:
             combined_df = pd.concat(all_volatility_data, ignore_index=True)
 
-            # Summary metrics
-            st.subheader("Summary Statistics")
+            # Summary metrics by stock
+            st.markdown("### Volatility Summary")
 
-            col1, col2, col3, col4 = st.columns(4)
+            summary_stats = []
+            for ticker in selected_stocks:
+                ticker_data = combined_df[combined_df["Ticker"] == ticker]
+                if not ticker_data.empty:
+                    avg_vol = ticker_data["Volatility_Pct"].mean()
+                    max_vol = ticker_data["Volatility_Pct"].max()
+                    avg_change = ticker_data["Daily_Change_Pct"].mean()
+                    win_rate = (len(ticker_data[ticker_data["Daily_Change_Pct"] > 0]) / len(ticker_data) * 100)
+                    current_price = ticker_data["Close"].iloc[-1]
 
-            with col1:
-                avg_volatility = combined_df["Volatility_Pct"].mean()
-                st.metric("Avg Daily Volatility", f"{avg_volatility:.2f}%")
+                    summary_stats.append({
+                        "Ticker": ticker,
+                        "Price": f"${current_price:.2f}",
+                        "Avg Vol %": f"{avg_vol:.2f}%",
+                        "Max Vol %": f"{max_vol:.2f}%",
+                        "Avg Change %": f"{avg_change:+.2f}%",
+                        "Win Rate": f"{win_rate:.0f}%"
+                    })
 
-            with col2:
-                max_volatility = combined_df["Volatility_Pct"].max()
-                st.metric("Max Daily Volatility", f"{max_volatility:.2f}%")
-
-            with col3:
-                avg_change = combined_df["Daily_Change_Pct"].mean()
-                st.metric("Avg Daily Change", f"{avg_change:+.2f}%")
-
-            with col4:
-                positive_days = len(combined_df[combined_df["Daily_Change_Pct"] > 0])
-                win_rate = (positive_days / len(combined_df) * 100) if len(combined_df) > 0 else 0
-                st.metric("Win Rate (Positive Days)", f"{win_rate:.1f}%")
+            if summary_stats:
+                summary_df = pd.DataFrame(summary_stats)
+                st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
             st.divider()
 
-            # Volatility chart by stock
-            st.subheader("Daily Volatility Trend")
-
+            # Volatility chart - simple line
+            st.markdown("### Volatility Trend")
             fig = px.line(
                 combined_df,
                 x="Date",
                 y="Volatility_Pct",
                 color="Ticker",
-                title="Daily Price Volatility by Stock",
-                labels={"Volatility_Pct": "Volatility (%)"}
+                markers=True,
+                height=350
             )
-            fig.update_layout(height=400)
+            fig.update_layout(hovermode="x unified")
             st.plotly_chart(fig, use_container_width=True)
 
             # Daily change chart
-            st.subheader("Daily Price Change")
-
+            st.markdown("### Daily Price Change")
             fig = px.bar(
                 combined_df,
                 x="Date",
                 y="Daily_Change_Pct",
                 color="Ticker",
-                title="Daily Price Change % by Stock",
-                labels={"Daily_Change_Pct": "Change (%)"},
-                barmode="group"
+                barmode="group",
+                height=350
             )
-            fig.update_layout(height=400)
             st.plotly_chart(fig, use_container_width=True)
 
-            # Detailed table for each stock
-            st.subheader("Detailed OHLC Data with Volatility")
+            # Expandable detailed tables by stock
+            st.divider()
+            st.markdown("### Detailed OHLC Data")
 
-            for ticker in selected_stocks:
-                ticker_data = combined_df[combined_df["Ticker"] == ticker].copy()
+            with st.expander("Show detailed data tables"):
+                for ticker in selected_stocks:
+                    ticker_data = combined_df[combined_df["Ticker"] == ticker].copy()
 
-                if not ticker_data.empty:
-                    st.markdown(f"### {ticker}")
+                    if not ticker_data.empty:
+                        st.markdown(f"**{ticker}**")
 
-                    # Key stats for this stock
-                    col1, col2, col3, col4, col5 = st.columns(5)
+                        # Display clean table
+                        display_df = ticker_data[[
+                            "Date", "Open", "High", "Low", "Close",
+                            "Daily_Change_Pct", "Volatility_Pct", "Volume"
+                        ]].copy()
 
-                    with col1:
-                        st.metric("Avg Close", f"${ticker_data['Close'].mean():.2f}")
+                        display_df = display_df.rename(columns={
+                            "Daily_Change_Pct": "Change %",
+                            "Volatility_Pct": "Vol %",
+                            "Volume": "Vol"
+                        })
 
-                    with col2:
-                        st.metric("High", f"${ticker_data['High'].max():.2f}")
+                        # Format for display
+                        display_df["Open"] = display_df["Open"].apply(lambda x: f"${x:.2f}")
+                        display_df["High"] = display_df["High"].apply(lambda x: f"${x:.2f}")
+                        display_df["Low"] = display_df["Low"].apply(lambda x: f"${x:.2f}")
+                        display_df["Close"] = display_df["Close"].apply(lambda x: f"${x:.2f}")
+                        display_df["Change %"] = display_df["Change %"].apply(lambda x: f"{x:+.2f}%")
+                        display_df["Vol %"] = display_df["Vol %"].apply(lambda x: f"{x:.2f}%")
+                        display_df["Vol"] = display_df["Vol"].apply(lambda x: f"{int(x/1e6):.1f}M" if x > 1e6 else f"{int(x/1e3):.0f}K")
 
-                    with col3:
-                        st.metric("Low", f"${ticker_data['Low'].min():.2f}")
-
-                    with col4:
-                        st.metric("Avg Volatility", f"{ticker_data['Volatility_Pct'].mean():.2f}%")
-
-                    with col5:
-                        st.metric("Latest Close", f"${ticker_data['Close'].iloc[-1]:.2f}")
-
-                    # Display detailed table
-                    display_df = ticker_data[[
-                        "Date", "Open", "High", "Low", "Close",
-                        "Daily_Range", "Daily_Change", "Daily_Change_Pct", "Volatility_Pct", "Volume"
-                    ]].copy()
-
-                    display_df = display_df.rename(columns={
-                        "Daily_Range": "Range (H-L)",
-                        "Daily_Change": "Change ($)",
-                        "Daily_Change_Pct": "Change (%)",
-                        "Volatility_Pct": "Volatility (%)",
-                        "Volume": "Volume"
-                    })
-
-                    # Format numbers for display
-                    display_df["Open"] = display_df["Open"].apply(lambda x: f"${x:.2f}")
-                    display_df["High"] = display_df["High"].apply(lambda x: f"${x:.2f}")
-                    display_df["Low"] = display_df["Low"].apply(lambda x: f"${x:.2f}")
-                    display_df["Close"] = display_df["Close"].apply(lambda x: f"${x:.2f}")
-                    display_df["Range (H-L)"] = display_df["Range (H-L)"].apply(lambda x: f"${x:.2f}")
-                    display_df["Change ($)"] = display_df["Change ($)"].apply(lambda x: f"${x:+.2f}")
-                    display_df["Change (%)"] = display_df["Change (%)"].apply(lambda x: f"{x:+.2f}%")
-                    display_df["Volatility (%)"] = display_df["Volatility (%)"].apply(lambda x: f"{x:.2f}%")
-
-                    st.dataframe(
-                        display_df.sort_values("Date", ascending=False),
-                        use_container_width=True,
-                        hide_index=True
-                    )
-
-                    st.divider()
+                        st.dataframe(
+                            display_df.sort_values("Date", ascending=False),
+                            use_container_width=True,
+                            hide_index=True
+                        )
     else:
-        st.info("Select at least one stock to analyze volatility and price action.")
+        st.info("👆 Click a preset or select stocks above to get started!")
