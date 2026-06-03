@@ -1,0 +1,18 @@
+
+================================================================================
+DAILY STOCK SCREENER REPORT - 2026-06-03 16:53:49
+================================================================================
+Screening NVDA... Traceback (most recent call last):
+  File "C:\Users\Alex\OneDrive\Desktop\Stocks_Management_Defi\run_screener.py", line 69, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\Alex\OneDrive\Desktop\Stocks_Management_Defi\run_screener.py", line 65, in main
+    screener.generate_daily_report()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Alex\OneDrive\Desktop\Stocks_Management_Defi\screener.py", line 176, in generate_daily_report
+    print("\u2713")
+    ~~~~~^^^^^
+  File "C:\Python314\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2713' in position 0: character maps to <undefined>
