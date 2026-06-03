@@ -24,6 +24,24 @@ st.set_page_config(
 # Initialize database
 db = DatabaseManager()
 
+# User-friendly signal reason mapping
+SIGNAL_REASONS = {
+    "price_below_sma20": "Price below 20-day moving average - Downtrend signal",
+    "price_above_sma20": "Price above 20-day moving average - Uptrend signal",
+    "moving_average_golden_cross": "Golden Cross! (SMA20 > SMA50 > SMA200) - Strong BUY setup",
+    "moving_average_death_cross": "Death Cross (SMA20 < SMA50 < SMA200) - Strong SELL setup",
+    "dividend_yield_increase": "Dividend yield increasing - Income opportunity",
+    "dividend_yield_decrease": "Dividend yield decreasing - Warning signal",
+    "consistent_positive_earnings": "Consistent positive earnings surprises - Quality company",
+    "negative_earnings_surprise": "Recent negative earnings surprises - Caution",
+    "low_pe_valuation": "Low PE ratio - Undervalued, potential value buy",
+    "high_pe_valuation": "High PE ratio - Overvalued, potential sell"
+}
+
+def get_friendly_reason(reason):
+    """Convert technical reason to user-friendly description"""
+    return SIGNAL_REASONS.get(reason, reason)
+
 st.title("📊 Stock Portfolio Management Dashboard")
 st.markdown("Real-time monitoring of multi-sector stock portfolio with AI-driven buy/sell signals")
 
@@ -87,6 +105,9 @@ with tab1:
     )
 
     if not signals_df.empty:
+        # Convert reasons to user-friendly format
+        signals_df["Reason"] = signals_df["Reason"].apply(get_friendly_reason)
+
         # Filter by selected sector
         signals_df = signals_df[signals_df["Ticker"].isin(filtered_tickers)]
 
@@ -113,8 +134,10 @@ with tab1:
             buy_signals = signals_df[signals_df["Signal Type"] == "BUY"].head(10)
             if not buy_signals.empty:
                 st.subheader("🟢 Buy Signals")
+                display_buy = buy_signals[["Ticker", "Reason", "Strength", "Date"]].copy()
+                display_buy["Strength"] = display_buy["Strength"].apply(lambda x: f"{x:.0f}/100")
                 st.dataframe(
-                    buy_signals[["Ticker", "Reason", "Strength", "Date"]],
+                    display_buy,
                     use_container_width=True,
                     hide_index=True
                 )
@@ -123,8 +146,10 @@ with tab1:
             sell_signals = signals_df[signals_df["Signal Type"] == "SELL"].head(10)
             if not sell_signals.empty:
                 st.subheader("🔴 Sell Signals")
+                display_sell = sell_signals[["Ticker", "Reason", "Strength", "Date"]].copy()
+                display_sell["Strength"] = display_sell["Strength"].apply(lambda x: f"{x:.0f}/100")
                 st.dataframe(
-                    sell_signals[["Ticker", "Reason", "Strength", "Date"]],
+                    display_sell,
                     use_container_width=True,
                     hide_index=True
                 )
@@ -477,7 +502,7 @@ with tab6:
     # Timeframe selection
     col1, col2, col3 = st.columns(3)
     with col1:
-        days_range = st.slider("Days of History", 10, 252, 60, help="Higher = More data for momentum analysis")
+        days_range = st.slider("Days of History", 10, 252, 60, help="Higher = More data for momentum analysis", key="days_slider_unique")
     with col2:
         st.write("")
     with col3:
@@ -488,9 +513,15 @@ with tab6:
 
         # Create combined analysis for all selected stocks
         all_volatility_data = []
+        data_loaded = []
 
         for ticker in selected_stocks:
             prices = db.get_daily_prices(ticker, days=days_range)
+
+            if prices:
+                data_loaded.append(f"{ticker} ({len(prices)} days)")
+            else:
+                data_loaded.append(f"{ticker} (no data)")
 
             if prices:
                 prices_df = pd.DataFrame(
@@ -509,6 +540,10 @@ with tab6:
                 prices_df["Ticker"] = ticker
 
                 all_volatility_data.append(prices_df)
+
+        # Show data loading status
+        if data_loaded:
+            st.info(f"📊 Data loaded: {', '.join(data_loaded)}")
 
         if all_volatility_data:
             combined_df = pd.concat(all_volatility_data, ignore_index=True)
