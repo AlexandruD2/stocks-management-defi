@@ -477,7 +477,7 @@ with tab6:
     # Timeframe selection
     col1, col2, col3 = st.columns(3)
     with col1:
-        days_range = st.slider("Days of History", 5, 90, 30)
+        days_range = st.slider("Days of History", 10, 252, 60, help="Higher = More data for momentum analysis")
     with col2:
         st.write("")
     with col3:
@@ -568,24 +568,35 @@ with tab6:
 
             # Expandable detailed tables by stock
             st.divider()
-            st.markdown("### Detailed OHLC Data")
+            st.markdown("### Detailed OHLC Data & Momentum")
 
-            with st.expander("Show detailed data tables"):
+            with st.expander("Show complete price history with momentum analysis"):
                 for ticker in selected_stocks:
                     ticker_data = combined_df[combined_df["Ticker"] == ticker].copy()
 
                     if not ticker_data.empty:
-                        st.markdown(f"**{ticker}**")
+                        # Sort by date ascending for momentum calculations
+                        ticker_data = ticker_data.sort_values("Date")
 
-                        # Display clean table
+                        # Calculate momentum indicators
+                        ticker_data["5D_Avg"] = ticker_data["Close"].rolling(window=5, min_periods=1).mean()
+                        ticker_data["Momentum"] = ticker_data["Close"] - ticker_data["5D_Avg"]
+                        ticker_data["Trend"] = ticker_data["Momentum"].apply(
+                            lambda x: "UP" if x > 0.5 else "DOWN" if x < -0.5 else "NEUTRAL"
+                        )
+
+                        # Create display dataframe
                         display_df = ticker_data[[
                             "Date", "Open", "High", "Low", "Close",
-                            "Daily_Change_Pct", "Volatility_Pct", "Volume"
+                            "Daily_Change_Pct", "Volatility_Pct", "5D_Avg", "Momentum", "Trend", "Volume"
                         ]].copy()
 
                         display_df = display_df.rename(columns={
-                            "Daily_Change_Pct": "Change %",
+                            "Daily_Change_Pct": "Chg %",
                             "Volatility_Pct": "Vol %",
+                            "5D_Avg": "5D Avg",
+                            "Momentum": "Mom",
+                            "Trend": "Trend",
                             "Volume": "Vol"
                         })
 
@@ -594,14 +605,50 @@ with tab6:
                         display_df["High"] = display_df["High"].apply(lambda x: f"${x:.2f}")
                         display_df["Low"] = display_df["Low"].apply(lambda x: f"${x:.2f}")
                         display_df["Close"] = display_df["Close"].apply(lambda x: f"${x:.2f}")
-                        display_df["Change %"] = display_df["Change %"].apply(lambda x: f"{x:+.2f}%")
+                        display_df["Chg %"] = display_df["Chg %"].apply(lambda x: f"{x:+.2f}%")
                         display_df["Vol %"] = display_df["Vol %"].apply(lambda x: f"{x:.2f}%")
+                        display_df["5D Avg"] = display_df["5D Avg"].apply(lambda x: f"${x:.2f}")
+                        display_df["Mom"] = display_df["Mom"].apply(lambda x: f"{x:+.2f}")
                         display_df["Vol"] = display_df["Vol"].apply(lambda x: f"{int(x/1e6):.1f}M" if x > 1e6 else f"{int(x/1e3):.0f}K")
 
+                        # Display header with stats
+                        col1, col2, col3, col4, col5 = st.columns(5)
+                        with col1:
+                            st.metric(f"{ticker} Current", f"${ticker_data['Close'].iloc[-1]:.2f}")
+                        with col2:
+                            period_change = ((ticker_data['Close'].iloc[-1] - ticker_data['Close'].iloc[0]) / ticker_data['Close'].iloc[0] * 100)
+                            st.metric("Period Change", f"{period_change:+.2f}%")
+                        with col3:
+                            latest_trend = display_df["Trend"].iloc[-1]
+                            st.metric("Current Trend", latest_trend)
+                        with col4:
+                            avg_vol = ticker_data["Volatility_Pct"].mean()
+                            st.metric("Avg Volatility", f"{avg_vol:.2f}%")
+                        with col5:
+                            records = len(ticker_data)
+                            st.metric("Trading Days", records)
+
+                        st.write("")
+
+                        # Display the full table
                         st.dataframe(
                             display_df.sort_values("Date", ascending=False),
                             use_container_width=True,
-                            hide_index=True
+                            hide_index=True,
+                            height=600  # Show more rows at once
                         )
+
+                        # Add analysis notes
+                        latest_momentum = ticker_data["Momentum"].iloc[-1]
+                        recent_avg = ticker_data["Momentum"].tail(5).mean()
+
+                        st.markdown(f"""
+                        **Momentum Analysis:**
+                        - Latest momentum: {latest_momentum:+.2f} (vs 5D avg: {ticker_data["5D_Avg"].iloc[-1]:.2f})
+                        - Recent 5-day trend: {'BULLISH' if recent_avg > 0 else 'BEARISH'}
+                        - Higher volatility = More trading opportunity | Lower volatility = More stable
+                        """)
+
+                        st.divider()
     else:
         st.info("👆 Click a preset or select stocks above to get started!")
