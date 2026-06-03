@@ -230,6 +230,12 @@ with tab3:
     if performance_data:
         perf_df = pd.DataFrame(performance_data)
 
+        # Convert to numeric types
+        perf_df["Price"] = pd.to_numeric(perf_df["Price"], errors="coerce")
+        perf_df["PE Ratio"] = pd.to_numeric(perf_df["PE Ratio"], errors="coerce")
+        perf_df["Dividend Yield %"] = pd.to_numeric(perf_df["Dividend Yield %"], errors="coerce")
+        perf_df["EPS"] = pd.to_numeric(perf_df["EPS"], errors="coerce")
+
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
@@ -291,31 +297,41 @@ with tab4:
         fund = db.get_latest_fundamentals(selected_ticker)
 
         if fund:
+            # Convert to float for safe formatting
+            price = float(fund[2]) if fund[2] else None
+            pe = float(fund[3]) if fund[3] else None
+            div = float(fund[4]) if fund[4] else None
+            eps = float(fund[9]) if fund[9] else None
+            mcap = float(fund[5]) if fund[5] else None
+            revenue = float(fund[6]) if fund[6] else None
+            net_income = float(fund[7]) if fund[7] else None
+            book_val = float(fund[8]) if fund[8] else None
+
             col1, col2, col3, col4 = st.columns(4)
 
             with col1:
-                st.metric("Price", f"${fund[2]:.2f}" if fund[2] else "N/A")
+                st.metric("Price", f"${price:.2f}" if price else "N/A")
 
             with col2:
-                st.metric("PE Ratio", f"{fund[3]:.2f}" if fund[3] else "N/A")
+                st.metric("PE Ratio", f"{pe:.2f}" if pe else "N/A")
 
             with col3:
-                st.metric("Dividend Yield", f"{fund[4]:.2f}%" if fund[4] else "N/A")
+                st.metric("Dividend Yield", f"{div:.2f}%" if div else "N/A")
 
             with col4:
-                st.metric("EPS", f"${fund[9]:.2f}" if fund[9] else "N/A")
+                st.metric("EPS", f"${eps:.2f}" if eps else "N/A")
 
             st.divider()
 
             col1, col2 = st.columns(2)
 
             with col1:
-                st.metric("Market Cap", f"${fund[5]/1e9:.2f}B" if fund[5] else "N/A")
-                st.metric("Revenue", f"${fund[6]/1e9:.2f}B" if fund[6] else "N/A")
+                st.metric("Market Cap", f"${mcap/1e9:.2f}B" if mcap else "N/A")
+                st.metric("Revenue", f"${revenue/1e9:.2f}B" if revenue else "N/A")
 
             with col2:
-                st.metric("Net Income", f"${fund[7]/1e9:.2f}B" if fund[7] else "N/A")
-                st.metric("Book Value", f"${fund[8]:.2f}" if fund[8] else "N/A")
+                st.metric("Net Income", f"${net_income/1e9:.2f}B" if net_income else "N/A")
+                st.metric("Book Value", f"${book_val:.2f}" if book_val else "N/A")
 
             st.divider()
 
