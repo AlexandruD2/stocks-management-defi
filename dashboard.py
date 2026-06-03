@@ -219,12 +219,13 @@ with tab3:
     for ticker in filtered_tickers:
         fund = db.get_latest_fundamentals(ticker)
         if fund:
+            # fund structure: id(0), ticker(1), date(2), price(3), pe_ratio(4), dividend_yield(5), market_cap(6), revenue(7), net_income(8), book_value(9), eps(10)
             performance_data.append({
                 "Ticker": ticker,
-                "Price": fund[2],
-                "PE Ratio": fund[3],
-                "Dividend Yield %": fund[4],
-                "EPS": fund[9]
+                "Price": fund[3],
+                "PE Ratio": fund[4],
+                "Dividend Yield %": fund[5],
+                "EPS": fund[10]
             })
 
     if performance_data:
@@ -298,14 +299,15 @@ with tab4:
 
         if fund:
             # Convert to float for safe formatting
-            price = float(fund[2]) if fund[2] else None
-            pe = float(fund[3]) if fund[3] else None
-            div = float(fund[4]) if fund[4] else None
-            eps = float(fund[9]) if fund[9] else None
-            mcap = float(fund[5]) if fund[5] else None
-            revenue = float(fund[6]) if fund[6] else None
-            net_income = float(fund[7]) if fund[7] else None
-            book_val = float(fund[8]) if fund[8] else None
+            # fund structure: id(0), ticker(1), date(2), price(3), pe_ratio(4), dividend_yield(5), market_cap(6), revenue(7), net_income(8), book_value(9), eps(10)
+            price = float(fund[3]) if fund[3] else None
+            pe = float(fund[4]) if fund[4] else None
+            div = float(fund[5]) if fund[5] else None
+            mcap = float(fund[6]) if fund[6] else None
+            revenue = float(fund[7]) if fund[7] else None
+            net_income = float(fund[8]) if fund[8] else None
+            book_val = float(fund[9]) if fund[9] else None
+            eps = float(fund[10]) if fund[10] else None
 
             col1, col2, col3, col4 = st.columns(4)
 
