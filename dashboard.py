@@ -67,12 +67,13 @@ with st.sidebar:
 
 
 # Main dashboard layout
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📈 Signals",
     "💼 Portfolio",
     "📊 Performance",
     "🔍 Fundamentals",
-    "📅 Historical"
+    "📅 Historical",
+    "📉 Volatility"
 ])
 
 # TAB 1: BUY/SELL SIGNALS
@@ -414,3 +415,164 @@ with tab5:
             st.dataframe(prices_df, use_container_width=True, hide_index=True)
         else:
             st.info(f"No historical data available for {selected_ticker}")
+
+
+# TAB 6: VOLATILITY & PRICE ACTION
+with tab6:
+    st.subheader("Volatility & Price Action Analysis")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        selected_stocks = st.multiselect(
+            "Select Stocks to Compare",
+            filtered_tickers,
+            default=filtered_tickers[:3] if len(filtered_tickers) >= 3 else filtered_tickers
+        )
+
+    with col2:
+        days_range = st.slider("Days of History", 5, 90, 30)
+
+    if selected_stocks:
+        st.divider()
+
+        # Create combined analysis for all selected stocks
+        all_volatility_data = []
+
+        for ticker in selected_stocks:
+            prices = db.get_daily_prices(ticker, days=days_range)
+
+            if prices:
+                prices_df = pd.DataFrame(
+                    prices,
+                    columns=["Date", "Open", "Close", "High", "Low", "Volume"]
+                )
+                prices_df = prices_df.sort_values("Date")
+
+                # Calculate volatility metrics
+                prices_df["Daily_Range"] = prices_df["High"] - prices_df["Low"]
+                prices_df["Daily_Change"] = prices_df["Close"] - prices_df["Open"]
+                prices_df["Daily_Change_Pct"] = (prices_df["Daily_Change"] / prices_df["Open"] * 100).round(2)
+                prices_df["Volatility_Pct"] = (prices_df["Daily_Range"] / prices_df["Open"] * 100).round(2)
+
+                # Add ticker column
+                prices_df["Ticker"] = ticker
+
+                all_volatility_data.append(prices_df)
+
+        if all_volatility_data:
+            combined_df = pd.concat(all_volatility_data, ignore_index=True)
+
+            # Summary metrics
+            st.subheader("Summary Statistics")
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                avg_volatility = combined_df["Volatility_Pct"].mean()
+                st.metric("Avg Daily Volatility", f"{avg_volatility:.2f}%")
+
+            with col2:
+                max_volatility = combined_df["Volatility_Pct"].max()
+                st.metric("Max Daily Volatility", f"{max_volatility:.2f}%")
+
+            with col3:
+                avg_change = combined_df["Daily_Change_Pct"].mean()
+                st.metric("Avg Daily Change", f"{avg_change:+.2f}%")
+
+            with col4:
+                positive_days = len(combined_df[combined_df["Daily_Change_Pct"] > 0])
+                win_rate = (positive_days / len(combined_df) * 100) if len(combined_df) > 0 else 0
+                st.metric("Win Rate (Positive Days)", f"{win_rate:.1f}%")
+
+            st.divider()
+
+            # Volatility chart by stock
+            st.subheader("Daily Volatility Trend")
+
+            fig = px.line(
+                combined_df,
+                x="Date",
+                y="Volatility_Pct",
+                color="Ticker",
+                title="Daily Price Volatility by Stock",
+                labels={"Volatility_Pct": "Volatility (%)"}
+            )
+            fig.update_layout(height=400)
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Daily change chart
+            st.subheader("Daily Price Change")
+
+            fig = px.bar(
+                combined_df,
+                x="Date",
+                y="Daily_Change_Pct",
+                color="Ticker",
+                title="Daily Price Change % by Stock",
+                labels={"Daily_Change_Pct": "Change (%)"},
+                barmode="group"
+            )
+            fig.update_layout(height=400)
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Detailed table for each stock
+            st.subheader("Detailed OHLC Data with Volatility")
+
+            for ticker in selected_stocks:
+                ticker_data = combined_df[combined_df["Ticker"] == ticker].copy()
+
+                if not ticker_data.empty:
+                    st.markdown(f"### {ticker}")
+
+                    # Key stats for this stock
+                    col1, col2, col3, col4, col5 = st.columns(5)
+
+                    with col1:
+                        st.metric("Avg Close", f"${ticker_data['Close'].mean():.2f}")
+
+                    with col2:
+                        st.metric("High", f"${ticker_data['High'].max():.2f}")
+
+                    with col3:
+                        st.metric("Low", f"${ticker_data['Low'].min():.2f}")
+
+                    with col4:
+                        st.metric("Avg Volatility", f"{ticker_data['Volatility_Pct'].mean():.2f}%")
+
+                    with col5:
+                        st.metric("Latest Close", f"${ticker_data['Close'].iloc[-1]:.2f}")
+
+                    # Display detailed table
+                    display_df = ticker_data[[
+                        "Date", "Open", "High", "Low", "Close",
+                        "Daily_Range", "Daily_Change", "Daily_Change_Pct", "Volatility_Pct", "Volume"
+                    ]].copy()
+
+                    display_df = display_df.rename(columns={
+                        "Daily_Range": "Range (H-L)",
+                        "Daily_Change": "Change ($)",
+                        "Daily_Change_Pct": "Change (%)",
+                        "Volatility_Pct": "Volatility (%)",
+                        "Volume": "Volume"
+                    })
+
+                    # Format numbers for display
+                    display_df["Open"] = display_df["Open"].apply(lambda x: f"${x:.2f}")
+                    display_df["High"] = display_df["High"].apply(lambda x: f"${x:.2f}")
+                    display_df["Low"] = display_df["Low"].apply(lambda x: f"${x:.2f}")
+                    display_df["Close"] = display_df["Close"].apply(lambda x: f"${x:.2f}")
+                    display_df["Range (H-L)"] = display_df["Range (H-L)"].apply(lambda x: f"${x:.2f}")
+                    display_df["Change ($)"] = display_df["Change ($)"].apply(lambda x: f"${x:+.2f}")
+                    display_df["Change (%)"] = display_df["Change (%)"].apply(lambda x: f"{x:+.2f}%")
+                    display_df["Volatility (%)"] = display_df["Volatility (%)"].apply(lambda x: f"{x:.2f}%")
+
+                    st.dataframe(
+                        display_df.sort_values("Date", ascending=False),
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                    st.divider()
+    else:
+        st.info("Select at least one stock to analyze volatility and price action.")
