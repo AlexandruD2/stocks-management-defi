@@ -138,6 +138,11 @@ class StockScreener:
 
         all_data = []
 
+        # Initialize stocks in database (with sector)
+        for sector, tickers in TICKERS.items():
+            for ticker in tickers:
+                self.db.insert_stock(ticker, ticker, sector)
+
         for ticker in ALL_TICKERS:
             print(f"Screening {ticker}...", end=" ")
 
