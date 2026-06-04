@@ -14,56 +14,56 @@ TICKERS = {
     "Internet & Cloud": ["GOOGL", "META", "NFLX", "AMZN", "PYPL"],
 
     # Healthcare & Life Sciences
-    "Pharmaceuticals": ["JNJ", "PFE", "MERCK", "LLY", "ABBV"],
-    "Healthcare Services": ["UNH", "CVS", "CIGNA", "HUM", "AET"],
+    "Pharmaceuticals": ["JNJ", "PFE", "MRK", "LLY", "ABBV"],
+    "Healthcare Services": ["UNH", "CVS", "CIGNA", "HUM", "ANTM"],
     "Biotechnology": ["AMGN", "BIIB", "GILD", "VRTX", "MRNA"],
-    "Medical Devices": ["MEDTRONIC", "ISRG", "STRYKER", "ZBH", "ALGN"],
+    "Medical Devices": ["MDT", "ISRG", "SYK", "ZBH", "ALGN"],
 
     # Financials
-    "Banks - Large": ["JPM", "BAC", "WFC", "GS", "C"],
-    "Banks - Regional": ["PNC", "TRUIST", "M&T", "FITB", "KEY"],
+    "Banks - Large": ["JPM", "BAC", "WFC", "GS", "CITI"],
+    "Banks - Regional": ["PNC", "TFC", "MTB", "FITB", "KEY"],
     "Insurance": ["BRK.B", "AXP", "MET", "PRU", "PGR"],
     "Asset Management": ["BLK", "SCHW", "CME", "ICE", "NDAQ"],
 
     # Industrials & Manufacturing
     "Aerospace & Defense": ["BA", "RTX", "LMT", "NOC", "GD"],
-    "Industrial Equipment": ["CAT", "PALL", "ITW", "EMR", "SNPS"],
-    "Conglomerates": ["GE", "HON", "3M", "MMM", "BLDR"],
-    "Machinery": ["DEERE", "NFLX", "RHI", "AGCO", "CNH"],
+    "Industrial Equipment": ["CAT", "PALL", "ITW", "EMR", "SNV"],
+    "Conglomerates": ["GE", "HON", "MMM", "BLK", "BLDR"],
+    "Machinery": ["DE", "CNH", "AGCO", "RHI", "ATI"],
 
     # Energy & Utilities
     "Oil & Gas Integrated": ["XOM", "CVX", "MPC", "PSX", "VLO"],
-    "Oil & Gas Exploration": ["EOG", "FANG", "COP", "HES", "PXD"],
+    "Oil & Gas Exploration": ["EOG", "FF", "COP", "HES", "PXD"],
     "Electric Utilities": ["NEE", "DUK", "SO", "AEP", "EXC"],
     "Natural Gas Utilities": ["WEC", "EIX", "NWE", "ONE", "AWK"],
-    "Renewable Energy": ["NEXTERA", "RUN", "ENPH", "PLUG", "CCIV"],
+    "Renewable Energy": ["NEE", "RUN", "ENPH", "PLUG", "ICLN"],
 
     # Consumer Discretionary
     "Retail - General": ["AMZN", "TJX", "TSCO", "COST", "WMT"],
     "Specialty Retail": ["HD", "LOW", "NWL", "ROST", "FIVE"],
-    "Apparel & Footwear": ["NKE", "VF", "DECK", "CROX", "SKX"],
+    "Apparel & Footwear": ["NKE", "VFC", "DECK", "CROX", "SKX"],
     "Restaurants": ["MCD", "YUM", "SBUX", "CMG", "TXRH"],
     "Hotels & Lodging": ["MAR", "HLT", "RCI", "IHG", "CHDN"],
 
     # Consumer Staples
     "Food & Beverages": ["PEP", "KO", "MO", "KHC", "MDLZ"],
-    "Consumer Packaged Goods": ["PG", "UNILEVER", "CL", "KMB", "WMK"],
-    "Grocery Stores": ["KROGER", "SPROUTS", "CALLYY", "WBA", "CVS"],
+    "Consumer Packaged Goods": ["PG", "UL", "CL", "KMB", "SCPL"],
+    "Grocery Stores": ["KR", "SFM", "CALLYY", "WBA", "AMPH"],
 
     # Communication & Media
     "Telecommunications": ["VZ", "T", "TMUS", "CMCSA", "CHTR"],
-    "Media & Broadcasting": ["DIS", "PARA", "FOX", "FUBO", "IMAX"],
+    "Media & Broadcasting": ["DIS", "PARA", "FOXA", "FUBO", "IMAX"],
     "Publishing": ["NYT", "GCI", "SAGE", "RELX", "TYP"],
 
     # Real Estate & Construction
     "Real Estate (REITs)": ["AMT", "PLD", "CCI", "WELL", "EQIX"],
-    "Homebuilding": ["PHM", "LEN", "KB", "TOLL", "TOL"],
-    "Construction & Engineering": ["VINCI", "ORION", "MTZ", "SNA", "MAS"],
+    "Homebuilding": ["PHM", "LEN", "KB", "TOL", "DHI"],
+    "Construction & Engineering": ["VISI", "ORION", "MTZ", "SNA", "MAS"],
 
     # Materials & Chemicals
-    "Metals & Mining": ["FCX", "NUCOR", "CLF", "RIO", "VALE"],
+    "Metals & Mining": ["FCX", "NUE", "CLF", "RIO", "VALE"],
     "Chemicals": ["DOW", "LYB", "CC", "SMPL", "ECL"],
-    "Steel": ["NUE", "X", "STLD", "CMC", "ATI"],
+    "Steel": ["X", "STLD", "CMC", "ATI", "NUE"],
 
     # Transportation & Logistics
     "Airlines": ["DAL", "UAL", "AAL", "SAVE", "ALK"],
@@ -72,7 +72,7 @@ TICKERS = {
 
     # Diversified / Multi-Sector
     "Artificial Intelligence": ["NVDA", "TSLA", "PLTR", "AI", "UPST"],
-    "Conglomerates & Diversified": ["BRK.B", "BERKSHIRE", "SPY", "QQQ", "IVV"],
+    "Conglomerates & Diversified": ["BRK.B", "BLK", "SPY", "QQQ", "IVV"],
 }
 
 # Flatten ticker list
