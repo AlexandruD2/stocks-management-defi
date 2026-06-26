@@ -85,7 +85,7 @@ with st.sidebar:
 
 
 # Main dashboard layout
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "📈 Signals",
     "💼 Portfolio",
     "📊 Performance",
@@ -93,7 +93,8 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "📅 Historical",
     "📉 Volatility",
     "💎 Defi",
-    "🎯 Swing Trading"
+    "🎯 Swing Trading",
+    "📊 Daily Price Log"
 ])
 
 # TAB 1: BUY/SELL SIGNALS
@@ -1127,3 +1128,175 @@ with tab8:
 
     else:
         st.warning("No stocks meet the volume filter criteria. Please adjust the minimum volume threshold.")
+
+
+# TAB 9: DAILY PRICE LOG - AGGREGATED PRICE DATA WITH CSV EXPORT
+with tab9:
+    st.subheader("Daily Price Log")
+    st.markdown("Historical price data with Previous Close, Open, High, Low, and 52-Week Range")
+
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        log_ticker = st.selectbox("Select Stock", filtered_tickers, key="price_log_ticker")
+    with col2:
+        st.write("")
+        if st.button("🔄 Refresh Data", key="refresh_log"):
+            st.rerun()
+
+    if log_ticker:
+        # Get 365 days of data for 52-week range calculation
+        all_prices = db.get_daily_prices(log_ticker, days=365)
+
+        # Get last 30 days for detailed view
+        recent_prices = db.get_daily_prices(log_ticker, days=30)
+
+        if recent_prices and len(recent_prices) > 0:
+            recent_df = pd.DataFrame(
+                recent_prices,
+                columns=["Date", "Open", "Close", "High", "Low", "Volume"]
+            )
+            recent_df = recent_df.sort_values("Date")
+
+            # Calculate 52-week range from all available data
+            if all_prices and len(all_prices) > 0:
+                all_df = pd.DataFrame(
+                    all_prices,
+                    columns=["Date", "Open", "Close", "High", "Low", "Volume"]
+                )
+                week_52_high = all_df["High"].max()
+                week_52_low = all_df["Low"].min()
+            else:
+                week_52_high = recent_df["High"].max()
+                week_52_low = recent_df["Low"].min()
+
+            # Build display dataframe
+            display_log = recent_df.copy()
+            display_log["Previous Close"] = display_log["Close"].shift(1)
+            display_log["Day's Range"] = display_log["High"] - display_log["Low"]
+            display_log["52W High"] = week_52_high
+            display_log["52W Low"] = week_52_low
+            display_log["52W Range"] = week_52_high - week_52_low
+
+            # Reorder columns for display
+            display_log = display_log[[
+                "Date", "Previous Close", "Open", "High", "Low",
+                "Day's Range", "52W High", "52W Low", "52W Range", "Volume"
+            ]]
+
+            # Format for display
+            log_display = display_log.copy()
+            log_display["Date"] = log_display["Date"].astype(str)
+            log_display["Previous Close"] = log_display["Previous Close"].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "N/A")
+            log_display["Open"] = log_display["Open"].apply(lambda x: f"${x:.2f}")
+            log_display["High"] = log_display["High"].apply(lambda x: f"${x:.2f}")
+            log_display["Low"] = log_display["Low"].apply(lambda x: f"${x:.2f}")
+            log_display["Day's Range"] = log_display["Day's Range"].apply(lambda x: f"${x:.2f}")
+            log_display["52W High"] = log_display["52W High"].apply(lambda x: f"${x:.2f}")
+            log_display["52W Low"] = log_display["52W Low"].apply(lambda x: f"${x:.2f}")
+            log_display["52W Range"] = log_display["52W Range"].apply(lambda x: f"${x:.2f}")
+            log_display["Volume"] = log_display["Volume"].apply(lambda x: f"{int(x/1e6)}M" if x > 1e6 else f"{int(x/1e3)}K")
+
+            # Display metrics
+            st.divider()
+            col1, col2, col3, col4, col5 = st.columns(5)
+
+            current_price = recent_df["Close"].iloc[-1]
+            prev_close = recent_df["Close"].iloc[-2] if len(recent_df) > 1 else current_price
+            price_change = current_price - prev_close
+            price_change_pct = (price_change / prev_close * 100) if prev_close > 0 else 0
+
+            with col1:
+                st.metric(f"{log_ticker} Current", f"${current_price:.2f}")
+            with col2:
+                st.metric("Previous Close", f"${prev_close:.2f}")
+            with col3:
+                st.metric("Day Change", f"${price_change:+.2f} ({price_change_pct:+.2f}%)")
+            with col4:
+                st.metric("52W High", f"${week_52_high:.2f}")
+            with col5:
+                st.metric("52W Low", f"${week_52_low:.2f}")
+
+            st.divider()
+
+            # Display the data table
+            st.subheader("Last 30 Days Price Data")
+            st.dataframe(
+                log_display.sort_values("Date", ascending=False),
+                use_container_width=True,
+                hide_index=True,
+                height=600
+            )
+
+            # CSV Export
+            st.divider()
+            st.subheader("📥 Export Data")
+
+            # Convert to CSV
+            csv_data = display_log.sort_values("Date", ascending=False).copy()
+            csv_data["Date"] = csv_data["Date"].astype(str)
+            csv_buffer = csv_data.to_csv(index=False)
+
+            col1, col2, col3 = st.columns([2, 1, 1])
+            with col1:
+                st.write("Download your daily price log as CSV file")
+            with col2:
+                st.write("")
+            with col3:
+                st.download_button(
+                    label="📥 Download CSV",
+                    data=csv_buffer,
+                    file_name=f"{log_ticker}_daily_prices.csv",
+                    mime="text/csv"
+                )
+
+            # Data insights
+            st.divider()
+            st.subheader("📈 30-Day Insights")
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            avg_daily_range = recent_df["Day's Range"].mean()
+            max_daily_range = recent_df["Day's Range"].max()
+            min_daily_range = recent_df["Day's Range"].min()
+            avg_volume = recent_df["Volume"].mean()
+
+            with col1:
+                st.metric("Avg Daily Range", f"${avg_daily_range:.2f}")
+            with col2:
+                st.metric("Max Daily Range", f"${max_daily_range:.2f}")
+            with col3:
+                st.metric("Min Daily Range", f"${min_daily_range:.2f}")
+            with col4:
+                st.metric("Avg Volume", f"{avg_volume/1e6:.1f}M")
+
+            # Price trend chart
+            fig = px.line(
+                recent_df,
+                x="Date",
+                y="Close",
+                title=f"{log_ticker} - 30 Day Price Trend",
+                markers=True
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=recent_df["Date"],
+                    y=recent_df["High"],
+                    mode="lines",
+                    name="High",
+                    line=dict(dash="dash", color="green")
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=recent_df["Date"],
+                    y=recent_df["Low"],
+                    mode="lines",
+                    name="Low",
+                    line=dict(dash="dash", color="red")
+                )
+            )
+            fig.update_layout(height=500)
+            st.plotly_chart(fig, use_container_width=True)
+
+        else:
+            st.info(f"No price data available for {log_ticker}. Please ensure backfill_history.py has been run.")
