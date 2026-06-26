@@ -85,13 +85,15 @@ with st.sidebar:
 
 
 # Main dashboard layout
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "📈 Signals",
     "💼 Portfolio",
     "📊 Performance",
     "🔍 Fundamentals",
     "📅 Historical",
-    "📉 Volatility"
+    "📉 Volatility",
+    "💎 Defi",
+    "🎯 Swing Trading"
 ])
 
 # TAB 1: BUY/SELL SIGNALS
@@ -418,6 +420,7 @@ with tab5:
                 columns=["Date", "Open", "Close", "High", "Low", "Volume"]
             )
             prices_df = prices_df.sort_values("Date")
+            prices_df["Open-Close Diff"] = prices_df["Close"] - prices_df["Open"]
 
             col1, col2, col3 = st.columns(3)
 
@@ -687,3 +690,440 @@ with tab6:
                         st.divider()
     else:
         st.info("👆 Click a preset or select stocks above to get started!")
+
+
+# TAB 7: DEFI - OPEN/CLOSE PERFORMANCE ANALYSIS
+with tab7:
+    st.subheader("Defi Performance Analysis")
+    st.markdown("Automatic ranking of stocks by Open-Close price movements")
+
+    # Timeframe selector
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        days_range = st.slider("Analysis Period (days)", 1, 60, 7, key="defi_days")
+    with col2:
+        st.write("")
+        st.write("")
+        if st.button("🔄 Refresh Analysis"):
+            st.rerun()
+    with col3:
+        st.write("")
+
+    st.divider()
+
+    # Analyze all stocks
+    analysis_data = []
+
+    for ticker in filtered_tickers:
+        try:
+            prices = db.get_daily_prices(ticker, days=days_range)
+            if prices and len(prices) > 0:
+                prices_df = pd.DataFrame(
+                    prices,
+                    columns=["Date", "Open", "Close", "High", "Low", "Volume"]
+                )
+                prices_df = prices_df.sort_values("Date")
+                prices_df["Diff"] = prices_df["Close"] - prices_df["Open"]
+                prices_df["Diff_Pct"] = (prices_df["Diff"] / prices_df["Open"] * 100)
+
+                # Calculate metrics
+                total_diff = prices_df["Diff"].sum()
+                avg_diff = prices_df["Diff"].mean()
+                max_diff = prices_df["Diff"].max()
+                min_diff = prices_df["Diff"].min()
+                winning_days = len(prices_df[prices_df["Diff"] > 0])
+                losing_days = len(prices_df[prices_df["Diff"] < 0])
+                total_days = len(prices_df)
+                win_rate = (winning_days / total_days * 100) if total_days > 0 else 0
+
+                latest_price = prices_df["Close"].iloc[-1]
+                latest_diff = prices_df["Diff"].iloc[-1]
+
+                analysis_data.append({
+                    "Ticker": ticker,
+                    "Latest Price": latest_price,
+                    "Today Diff": latest_diff,
+                    "Total Diff": total_diff,
+                    "Avg Diff": avg_diff,
+                    "Max Move": max_diff,
+                    "Min Move": min_diff,
+                    "Win Rate %": win_rate,
+                    "Winning Days": winning_days,
+                    "Losing Days": losing_days,
+                    "Days": total_days
+                })
+        except Exception as e:
+            continue
+
+    if analysis_data:
+        analysis_df = pd.DataFrame(analysis_data)
+
+        # Display tabs for different rankings
+        rank_tab1, rank_tab2, rank_tab3, rank_tab4 = st.tabs([
+            "🚀 Best Overall Performers",
+            "📈 Best Today",
+            "🔴 Biggest Losers",
+            "💰 Highest Win Rate"
+        ])
+
+        with rank_tab1:
+            st.markdown("### Ranked by Total Cumulative Difference")
+            top_performers = analysis_df.nlargest(15, "Total Diff")[
+                ["Ticker", "Latest Price", "Total Diff", "Avg Diff", "Win Rate %", "Days"]
+            ].copy()
+            top_performers["Total Diff"] = top_performers["Total Diff"].apply(lambda x: f"${x:+.2f}")
+            top_performers["Avg Diff"] = top_performers["Avg Diff"].apply(lambda x: f"${x:+.2f}")
+            top_performers["Latest Price"] = top_performers["Latest Price"].apply(lambda x: f"${x:.2f}")
+            top_performers["Win Rate %"] = top_performers["Win Rate %"].apply(lambda x: f"{x:.1f}%")
+            st.dataframe(top_performers, use_container_width=True, hide_index=True)
+
+            # Chart
+            chart_data = analysis_df.nlargest(10, "Total Diff")
+            fig = px.bar(
+                chart_data,
+                x="Ticker",
+                y="Total Diff",
+                title="Top 10 Cumulative Gainers",
+                color="Total Diff",
+                color_continuous_scale="RdYlGn"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        with rank_tab2:
+            st.markdown("### Ranked by Today's Move (Latest Day)")
+            today_best = analysis_df.nlargest(15, "Today Diff")[
+                ["Ticker", "Latest Price", "Today Diff", "Avg Diff", "Win Rate %", "Days"]
+            ].copy()
+            today_best["Today Diff"] = today_best["Today Diff"].apply(lambda x: f"${x:+.2f}")
+            today_best["Avg Diff"] = today_best["Avg Diff"].apply(lambda x: f"${x:+.2f}")
+            today_best["Latest Price"] = today_best["Latest Price"].apply(lambda x: f"${x:.2f}")
+            today_best["Win Rate %"] = today_best["Win Rate %"].apply(lambda x: f"{x:.1f}%")
+            st.dataframe(today_best, use_container_width=True, hide_index=True)
+
+            # Chart
+            chart_data = analysis_df.nlargest(10, "Today Diff")
+            fig = px.bar(
+                chart_data,
+                x="Ticker",
+                y="Today Diff",
+                title="Top 10 Today's Gainers",
+                color="Today Diff",
+                color_continuous_scale="RdYlGn"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        with rank_tab3:
+            st.markdown("### Ranked by Biggest Losses")
+            worst_performers = analysis_df.nsmallest(15, "Total Diff")[
+                ["Ticker", "Latest Price", "Total Diff", "Avg Diff", "Win Rate %", "Days"]
+            ].copy()
+            worst_performers["Total Diff"] = worst_performers["Total Diff"].apply(lambda x: f"${x:+.2f}")
+            worst_performers["Avg Diff"] = worst_performers["Avg Diff"].apply(lambda x: f"${x:+.2f}")
+            worst_performers["Latest Price"] = worst_performers["Latest Price"].apply(lambda x: f"${x:.2f}")
+            worst_performers["Win Rate %"] = worst_performers["Win Rate %"].apply(lambda x: f"{x:.1f}%")
+            st.dataframe(worst_performers, use_container_width=True, hide_index=True)
+
+            # Chart
+            chart_data = analysis_df.nsmallest(10, "Total Diff")
+            fig = px.bar(
+                chart_data,
+                x="Ticker",
+                y="Total Diff",
+                title="Top 10 Biggest Losers",
+                color="Total Diff",
+                color_continuous_scale="RdYlGn"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        with rank_tab4:
+            st.markdown("### Ranked by Win Rate (% of Profitable Days)")
+            best_winrate = analysis_df.nlargest(15, "Win Rate %")[
+                ["Ticker", "Latest Price", "Win Rate %", "Winning Days", "Losing Days", "Total Diff"]
+            ].copy()
+            best_winrate["Latest Price"] = best_winrate["Latest Price"].apply(lambda x: f"${x:.2f}")
+            best_winrate["Win Rate %"] = best_winrate["Win Rate %"].apply(lambda x: f"{x:.1f}%")
+            best_winrate["Total Diff"] = best_winrate["Total Diff"].apply(lambda x: f"${x:+.2f}")
+            st.dataframe(best_winrate, use_container_width=True, hide_index=True)
+
+            # Chart
+            chart_data = analysis_df.nlargest(10, "Win Rate %")
+            fig = px.bar(
+                chart_data,
+                x="Ticker",
+                y="Win Rate %",
+                title="Top 10 Consistent Winners (By Win Rate)",
+                color="Win Rate %",
+                color_continuous_scale="Greens"
+            )
+            fig.update_yaxes(range=[0, 100])
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Summary statistics
+        st.divider()
+        st.subheader("Portfolio Summary")
+        col1, col2, col3, col4, col5 = st.columns(5)
+
+        with col1:
+            st.metric("Total Stocks Analyzed", len(analysis_df))
+        with col2:
+            avg_total_diff = analysis_df["Total Diff"].mean()
+            st.metric("Avg Cumulative Diff", f"${avg_total_diff:+.2f}")
+        with col3:
+            avg_winrate = analysis_df["Win Rate %"].mean()
+            st.metric("Avg Win Rate", f"{avg_winrate:.1f}%")
+        with col4:
+            best_ticker = analysis_df.loc[analysis_df["Total Diff"].idxmax(), "Ticker"]
+            best_value = analysis_df["Total Diff"].max()
+            st.metric("Top Performer", f"{best_ticker}: ${best_value:+.2f}")
+        with col5:
+            worst_ticker = analysis_df.loc[analysis_df["Total Diff"].idxmin(), "Ticker"]
+            worst_value = analysis_df["Total Diff"].min()
+            st.metric("Worst Performer", f"{worst_ticker}: ${worst_value:+.2f}")
+
+    else:
+        st.warning("No data available for analysis. Please run backfill_history.py first.")
+
+
+# TAB 8: SWING TRADING - SHORT-TERM PROFIT SIGNALS
+with tab8:
+    st.subheader("Swing Trading Analysis")
+    st.markdown("Identify stocks with consistent daily volatility for 1-2 day holding periods")
+
+    # Analysis parameters
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        swing_days = st.slider("Analysis Period (days)", 5, 60, 20, key="swing_days")
+    with col2:
+        min_volume_filter = st.number_input("Min Avg Volume (M)", 1, 100, 5, key="min_vol")
+    with col3:
+        st.write("")
+
+    st.divider()
+
+    # Analyze all stocks for swing trading potential
+    swing_data = []
+
+    for ticker in filtered_tickers:
+        try:
+            prices = db.get_daily_prices(ticker, days=swing_days)
+            if prices and len(prices) > 5:
+                prices_df = pd.DataFrame(
+                    prices,
+                    columns=["Date", "Open", "Close", "High", "Low", "Volume"]
+                )
+                prices_df = prices_df.sort_values("Date")
+                prices_df["Daily_Swing"] = abs(prices_df["Close"] - prices_df["Open"])
+                prices_df["Swing_Pct"] = (prices_df["Daily_Swing"] / prices_df["Open"] * 100)
+                prices_df["Direction"] = (prices_df["Close"] - prices_df["Open"]) / abs(prices_df["Close"] - prices_df["Open"])
+
+                # Calculate swing trading metrics
+                avg_swing = prices_df["Daily_Swing"].mean()
+                avg_swing_pct = prices_df["Swing_Pct"].mean()
+                max_swing = prices_df["Daily_Swing"].max()
+                min_swing = prices_df["Daily_Swing"].min()
+                std_swing = prices_df["Daily_Swing"].std()
+
+                # Consistency: % of days with above-average swings
+                avg_all = prices_df["Daily_Swing"].mean()
+                consistent_days = len(prices_df[prices_df["Daily_Swing"] > avg_all])
+                consistency_score = (consistent_days / len(prices_df) * 100) if len(prices_df) > 0 else 0
+
+                # Volatility coefficient (std dev / mean)
+                volatility_coeff = (std_swing / avg_swing) if avg_swing > 0 else 0
+
+                # Volume check
+                avg_volume = prices_df["Volume"].mean()
+                min_volume_threshold = min_volume_filter * 1e6
+
+                # Recent trend
+                recent_5_avg = prices_df["Close"].tail(5).mean()
+                older_5_avg = prices_df["Close"].iloc[0:5].mean() if len(prices_df) >= 5 else prices_df["Close"].iloc[0]
+                trend_direction = "UP" if recent_5_avg > older_5_avg else "DOWN"
+
+                # Swing trading score (0-100)
+                score = 0
+                score += min(40, avg_swing_pct * 4)  # Volatility (max 40 points)
+                score += min(30, consistency_score / 2)  # Consistency (max 30 points)
+                score += min(20, (avg_volume / min_volume_threshold) * 20) if avg_volume > 0 else 0  # Liquidity (max 20 points)
+                score += 10 if volatility_coeff > 1.5 else 5  # Extra volatility bonus
+
+                latest_price = prices_df["Close"].iloc[-1]
+                latest_swing = prices_df["Daily_Swing"].iloc[-1]
+                today_direction = "UP" if prices_df["Close"].iloc[-1] > prices_df["Open"].iloc[-1] else "DOWN"
+
+                # Only include if passes minimum volume filter
+                if avg_volume >= min_volume_threshold:
+                    swing_data.append({
+                        "Ticker": ticker,
+                        "Price": latest_price,
+                        "Swing Score": score,
+                        "Avg Swing $": avg_swing,
+                        "Avg Swing %": avg_swing_pct,
+                        "Today Swing": latest_swing,
+                        "Consistency %": consistency_score,
+                        "Volatility": volatility_coeff,
+                        "Avg Volume M": avg_volume / 1e6,
+                        "Trend": trend_direction,
+                        "Today": today_direction,
+                        "Max Swing": max_swing,
+                        "Min Swing": min_swing,
+                    })
+        except Exception as e:
+            continue
+
+    if swing_data:
+        swing_df = pd.DataFrame(swing_data)
+        swing_df = swing_df.sort_values("Swing Score", ascending=False)
+
+        # Top opportunities
+        st.markdown("### 🚀 Top Swing Trading Opportunities")
+
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            top_score = swing_df["Swing Score"].max()
+            st.metric("Best Score", f"{top_score:.0f}/100")
+        with col2:
+            avg_avg_swing = swing_df["Avg Swing %"].mean()
+            st.metric("Portfolio Avg Swing", f"{avg_avg_swing:.2f}%")
+        with col3:
+            high_volatility = len(swing_df[swing_df["Volatility"] > 1.5])
+            st.metric("High Volatility Stocks", high_volatility)
+        with col4:
+            consistent = len(swing_df[swing_df["Consistency %"] > 70])
+            st.metric("Highly Consistent", consistent)
+
+        st.divider()
+
+        # Display top 20 opportunities
+        display_df = swing_df.head(20)[
+            ["Ticker", "Price", "Swing Score", "Avg Swing %", "Consistency %", "Trend", "Today", "Avg Volume M"]
+        ].copy()
+        display_df["Price"] = display_df["Price"].apply(lambda x: f"${x:.2f}")
+        display_df["Swing Score"] = display_df["Swing Score"].apply(lambda x: f"{x:.0f}")
+        display_df["Avg Swing %"] = display_df["Avg Swing %"].apply(lambda x: f"{x:.2f}%")
+        display_df["Consistency %"] = display_df["Consistency %"].apply(lambda x: f"{x:.1f}%")
+        display_df["Avg Volume M"] = display_df["Avg Volume M"].apply(lambda x: f"{x:.1f}M")
+
+        st.dataframe(display_df, use_container_width=True, hide_index=True)
+
+        st.markdown("**Legend:** 🔴 RED = Price went DOWN | 🟢 GREEN = Price went UP")
+
+        # Charts
+        st.divider()
+        st.markdown("### 📊 Analysis Charts")
+
+        col_chart1, col_chart2 = st.columns(2)
+
+        with col_chart1:
+            chart_data = swing_df.head(15)
+            fig = px.bar(
+                chart_data,
+                x="Ticker",
+                y="Swing Score",
+                title="Top 15 Swing Trading Scores",
+                color="Swing Score",
+                color_continuous_scale="Viridis"
+            )
+            fig.update_yaxes(range=[0, 100])
+            st.plotly_chart(fig, use_container_width=True)
+
+        with col_chart2:
+            chart_data = swing_df.head(15)
+            fig = px.scatter(
+                chart_data,
+                x="Avg Swing %",
+                y="Consistency %",
+                size="Avg Volume M",
+                color="Swing Score",
+                hover_data=["Ticker"],
+                title="Volatility vs Consistency (size = volume)",
+                labels={"Avg Swing %": "Average Daily Swing %", "Consistency %": "Profitable Days %"}
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Detailed Analysis
+        st.divider()
+        st.markdown("### 🎯 Detailed Stock Analysis")
+
+        selected_swing_ticker = st.selectbox(
+            "Select stock for detailed swing analysis",
+            swing_df["Ticker"].head(20),
+            key="swing_ticker"
+        )
+
+        if selected_swing_ticker:
+            stock_data = swing_df[swing_df["Ticker"] == selected_swing_ticker].iloc[0]
+
+            col1, col2, col3, col4, col5 = st.columns(5)
+            with col1:
+                st.metric("Current Price", f"${stock_data['Price']:.2f}")
+            with col2:
+                st.metric("Avg Daily Swing", f"${stock_data['Avg Swing $']:.2f}")
+            with col3:
+                st.metric("Avg Swing %", f"{stock_data['Avg Swing %']:.2f}%")
+            with col4:
+                st.metric("Consistency", f"{stock_data['Consistency %']:.1f}%")
+            with col5:
+                st.metric("Volatility Index", f"{stock_data['Volatility']:.2f}")
+
+            # Get detailed daily data
+            prices = db.get_daily_prices(selected_swing_ticker, days=swing_days)
+            if prices:
+                detail_df = pd.DataFrame(
+                    prices,
+                    columns=["Date", "Open", "Close", "High", "Low", "Volume"]
+                )
+                detail_df = detail_df.sort_values("Date")
+                detail_df["Swing"] = abs(detail_df["Close"] - detail_df["Open"])
+                detail_df["Swing %"] = (detail_df["Swing"] / detail_df["Open"] * 100)
+                detail_df["Direction"] = detail_df["Close"] - detail_df["Open"]
+                detail_df["Range"] = detail_df["High"] - detail_df["Low"]
+
+                # Display daily data
+                st.markdown(f"#### Daily Swing Data for {selected_swing_ticker}")
+                display_detail = detail_df.tail(15)[
+                    ["Date", "Open", "Close", "Swing", "Swing %", "Direction", "High", "Low", "Volume"]
+                ].copy()
+
+                display_detail["Open"] = display_detail["Open"].apply(lambda x: f"${x:.2f}")
+                display_detail["Close"] = display_detail["Close"].apply(lambda x: f"${x:.2f}")
+                display_detail["High"] = display_detail["High"].apply(lambda x: f"${x:.2f}")
+                display_detail["Low"] = display_detail["Low"].apply(lambda x: f"${x:.2f}")
+                display_detail["Swing"] = display_detail["Swing"].apply(lambda x: f"${x:.2f}")
+                display_detail["Swing %"] = display_detail["Swing %"].apply(lambda x: f"{x:.2f}%")
+                display_detail["Direction"] = display_detail["Direction"].apply(lambda x: f"${x:+.2f}")
+                display_detail["Volume"] = display_detail["Volume"].apply(lambda x: f"{x/1e6:.1f}M")
+
+                st.dataframe(display_detail, use_container_width=True, hide_index=True)
+
+                # Trading signals
+                st.markdown(f"#### 🎯 Trading Signals for {selected_swing_ticker}")
+
+                latest_close = detail_df["Close"].iloc[-1]
+                latest_open = detail_df["Open"].iloc[-1]
+                avg_swing_val = detail_df["Swing"].mean()
+
+                # Support/Resistance levels (simple approach)
+                support = detail_df["Low"].tail(5).min()
+                resistance = detail_df["High"].tail(5).max()
+
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("Support Level", f"${support:.2f}")
+                with col2:
+                    st.metric("Current Price", f"${latest_close:.2f}")
+                with col3:
+                    st.metric("Resistance Level", f"${resistance:.2f}")
+
+                st.markdown(f"""
+                **Trading Strategy:**
+                - **Buy Signal:** Price near support (${support:.2f}) with avg swing ${avg_swing_val:.2f}
+                - **Target:** Resistance at ${resistance:.2f}
+                - **Stop Loss:** Below ${support - avg_swing_val:.2f}
+                - **Expected Swing:** ${avg_swing_val:.2f} ({stock_data['Avg Swing %']:.2f}%) per day
+                - **Trend:** {stock_data['Trend']}
+                - **Consistency:** {stock_data['Consistency %']:.1f}% of days profitable
+                """)
+
+    else:
+        st.warning("No stocks meet the volume filter criteria. Please adjust the minimum volume threshold.")
