@@ -11,7 +11,7 @@ import plotly.express as px
 from database_manager import DatabaseManager
 from data_collection import DataCollector
 from analysis import StockAnalyzer
-from config import TICKERS, ALL_TICKERS
+from config import TICKERS, ALL_TICKERS, TICKER_NAMES
 
 # Page configuration
 st.set_page_config(
@@ -413,6 +413,10 @@ with tab5:
     days_lookback = st.slider("Days to Display", 30, 365, 90)
 
     if selected_ticker:
+        # Get company name
+        company_name = TICKER_NAMES.get(selected_ticker, selected_ticker)
+        stock_display = f"{company_name} - {selected_ticker}"
+
         prices = db.get_daily_prices(selected_ticker, days=days_lookback)
 
         if prices:
@@ -446,22 +450,22 @@ with tab5:
             )])
 
             fig.update_layout(
-                title=f"{selected_ticker} - Historical Price Data",
+                title=f"{stock_display} - Historical Price Data",
                 height=500,
                 xaxis_rangeslider_visible=False
             )
             st.plotly_chart(fig, use_container_width=True)
 
             # Volume analysis
-            fig = px.bar(prices_df, x="Date", y="Volume", title=f"{selected_ticker} - Trading Volume")
+            fig = px.bar(prices_df, x="Date", y="Volume", title=f"{stock_display} - Trading Volume")
             fig.update_layout(height=300)
             st.plotly_chart(fig, use_container_width=True)
 
             # Display data table
-            st.subheader("Data Table")
+            st.subheader(f"Data Table - {stock_display}")
             st.dataframe(prices_df, use_container_width=True, hide_index=True)
         else:
-            st.info(f"No historical data available for {selected_ticker}")
+            st.info(f"No historical data available for {stock_display}")
 
 
 # TAB 6: VOLATILITY & PRICE ACTION
@@ -1144,6 +1148,10 @@ with tab9:
             st.rerun()
 
     if log_ticker:
+        # Get company name
+        log_company_name = TICKER_NAMES.get(log_ticker, log_ticker)
+        log_display_name = f"{log_company_name} - {log_ticker}"
+
         # Get 365 days of data for 52-week range calculation
         all_prices = db.get_daily_prices(log_ticker, days=365)
 
@@ -1206,7 +1214,7 @@ with tab9:
             price_change_pct = (price_change / prev_close * 100) if prev_close > 0 else 0
 
             with col1:
-                st.metric(f"{log_ticker} Current", f"${current_price:.2f}")
+                st.metric(f"{log_display_name} Current", f"${current_price:.2f}")
             with col2:
                 st.metric("Previous Close", f"${prev_close:.2f}")
             with col3:
@@ -1219,7 +1227,7 @@ with tab9:
             st.divider()
 
             # Display the data table
-            st.subheader("Last 30 Days Price Data")
+            st.subheader(f"Last 30 Days Price Data - {log_display_name}")
             st.dataframe(
                 log_display.sort_values("Date", ascending=False),
                 use_container_width=True,
@@ -1274,7 +1282,7 @@ with tab9:
                 recent_df,
                 x="Date",
                 y="Close",
-                title=f"{log_ticker} - 30 Day Price Trend",
+                title=f"{log_display_name} - 30 Day Price Trend",
                 markers=True
             )
             fig.add_trace(
