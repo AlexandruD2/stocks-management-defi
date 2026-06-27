@@ -1052,6 +1052,67 @@ with tab8:
             )
             st.plotly_chart(fig, use_container_width=True)
 
+        # Open → High Opportunity Table
+        st.divider()
+        st.markdown("### 📈 Open → High Opportunity Analysis")
+        st.markdown(
+            "Average daily upside from **Open to High** across multiple lookback windows. "
+            "Shows which stocks consistently offer the largest intraday move from the opening price."
+        )
+
+        opp_data = []
+        for ticker in filtered_tickers:
+            try:
+                prices = db.get_daily_prices(ticker, days=30)
+                if prices and len(prices) >= 5:
+                    odf = pd.DataFrame(
+                        prices,
+                        columns=["Date", "Open", "Close", "High", "Low", "Volume"]
+                    )
+                    odf = odf.sort_values("Date")
+                    odf["H_vs_O"] = (odf["High"] - odf["Open"]) / odf["Open"] * 100
+
+                    row = {
+                        "Ticker": ticker,
+                        "Company": TICKER_NAMES.get(ticker, ticker),
+                        "Price": odf["Close"].iloc[-1],
+                    }
+                    for window in [5, 10, 15, 20, 25, 30]:
+                        tail = odf["H_vs_O"].tail(window)
+                        row[f"{window}D Avg %"] = round(tail.mean(), 3) if len(tail) >= window else None
+
+                    # Identify the window that produced the highest average opportunity
+                    window_cols = [f"{w}D Avg %" for w in [5, 10, 15, 20, 25, 30]]
+                    valid = {k: row[k] for k in window_cols if row[k] is not None}
+                    if valid:
+                        row["Best Window"] = max(valid, key=valid.get)
+                        row["Peak Avg %"] = max(valid.values())
+                    else:
+                        row["Best Window"] = "N/A"
+                        row["Peak Avg %"] = None
+
+                    opp_data.append(row)
+            except Exception:
+                continue
+
+        if opp_data:
+            opp_df = pd.DataFrame(opp_data).sort_values("30D Avg %", ascending=False).reset_index(drop=True)
+            opp_df.insert(0, "Rank", range(1, len(opp_df) + 1))
+
+            opp_display = opp_df.copy()
+            opp_display["Price"] = opp_display["Price"].apply(lambda x: f"${x:.2f}")
+            for window in [5, 10, 15, 20, 25, 30]:
+                col = f"{window}D Avg %"
+                opp_display[col] = opp_display[col].apply(
+                    lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A"
+                )
+            opp_display["Peak Avg %"] = opp_display["Peak Avg %"].apply(
+                lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A"
+            )
+
+            st.dataframe(opp_display, use_container_width=True, hide_index=True)
+            st.caption("Ranked by 30-day average. 'Best Window' shows which lookback had the highest avg Open→High move.")
+
         # Detailed Analysis
         st.divider()
         st.markdown("### 🎯 Detailed Stock Analysis")
