@@ -1070,25 +1070,32 @@ with tab8:
                         columns=["Date", "Open", "Close", "High", "Low", "Volume"]
                     )
                     odf = odf.sort_values("Date")
-                    odf["H_vs_O"] = (odf["High"] - odf["Open"]) / odf["Open"] * 100
+                    odf["H_vs_O_pct"] = (odf["High"] - odf["Open"]) / odf["Open"] * 100
+                    odf["H_vs_O_usd"] = odf["High"] - odf["Open"]
 
                     row = {
                         "Ticker": ticker,
                         "Company": TICKER_NAMES.get(ticker, ticker),
-                        "Price": odf["Close"].iloc[-1],
+                        "Last Price": odf["Close"].iloc[-1],
                     }
                     for window in [5, 10, 15, 20, 25, 30]:
-                        tail = odf["H_vs_O"].tail(window)
-                        row[f"{window}D Avg %"] = round(tail.mean(), 3) if len(tail) >= window else None
+                        pct_tail = odf["H_vs_O_pct"].tail(window)
+                        usd_tail = odf["H_vs_O_usd"].tail(window)
+                        has_data = len(pct_tail) >= window
+                        row[f"{window}D Avg $"] = round(usd_tail.mean(), 3) if has_data else None
+                        row[f"{window}D Avg %"] = round(pct_tail.mean(), 3) if has_data else None
 
                     # Identify the window that produced the highest average opportunity
                     window_cols = [f"{w}D Avg %" for w in [5, 10, 15, 20, 25, 30]]
                     valid = {k: row[k] for k in window_cols if row[k] is not None}
                     if valid:
                         row["Best Window"] = max(valid, key=valid.get)
+                        best_w = row["Best Window"].replace("Avg %", "Avg $")
+                        row["Peak Avg $"] = row.get(best_w)
                         row["Peak Avg %"] = max(valid.values())
                     else:
                         row["Best Window"] = "N/A"
+                        row["Peak Avg $"] = None
                         row["Peak Avg %"] = None
 
                     opp_data.append(row)
@@ -1096,16 +1103,27 @@ with tab8:
                 continue
 
         if opp_data:
+            # Build ordered columns: interleave $ and % for each window
+            window_cols_ordered = []
+            for w in [5, 10, 15, 20, 25, 30]:
+                window_cols_ordered += [f"{w}D Avg $", f"{w}D Avg %"]
+
             opp_df = pd.DataFrame(opp_data).sort_values("30D Avg %", ascending=False).reset_index(drop=True)
             opp_df.insert(0, "Rank", range(1, len(opp_df) + 1))
+            opp_df = opp_df[["Rank", "Ticker", "Company", "Last Price"] + window_cols_ordered + ["Best Window", "Peak Avg $", "Peak Avg %"]]
 
             opp_display = opp_df.copy()
-            opp_display["Price"] = opp_display["Price"].apply(lambda x: f"${x:.2f}")
-            for window in [5, 10, 15, 20, 25, 30]:
-                col = f"{window}D Avg %"
-                opp_display[col] = opp_display[col].apply(
+            opp_display["Last Price"] = opp_display["Last Price"].apply(lambda x: f"${x:.2f}")
+            for w in [5, 10, 15, 20, 25, 30]:
+                opp_display[f"{w}D Avg $"] = opp_display[f"{w}D Avg $"].apply(
+                    lambda x: f"${x:.2f}" if pd.notna(x) else "N/A"
+                )
+                opp_display[f"{w}D Avg %"] = opp_display[f"{w}D Avg %"].apply(
                     lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A"
                 )
+            opp_display["Peak Avg $"] = opp_display["Peak Avg $"].apply(
+                lambda x: f"${x:.2f}" if pd.notna(x) else "N/A"
+            )
             opp_display["Peak Avg %"] = opp_display["Peak Avg %"].apply(
                 lambda x: f"{x:.2f}%" if pd.notna(x) else "N/A"
             )
