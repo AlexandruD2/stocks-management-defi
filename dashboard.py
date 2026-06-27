@@ -320,7 +320,10 @@ with tab3:
 with tab4:
     st.subheader("Stock Fundamentals")
 
-    selected_ticker = st.selectbox("Select Stock", filtered_tickers)
+    selected_ticker = st.selectbox(
+        "Select Stock", filtered_tickers,
+        format_func=lambda t: f"{TICKER_NAMES.get(t, t)} ({t})"
+    )
 
     if selected_ticker:
         fund = db.get_latest_fundamentals(selected_ticker)
@@ -409,7 +412,10 @@ with tab4:
 with tab5:
     st.subheader("Historical Price Data")
 
-    selected_ticker = st.selectbox("Select Stock for Historical Analysis", filtered_tickers, key="history_ticker")
+    selected_ticker = st.selectbox(
+        "Select Stock for Historical Analysis", filtered_tickers, key="history_ticker",
+        format_func=lambda t: f"{TICKER_NAMES.get(t, t)} ({t})"
+    )
     days_lookback = st.slider("Days to Display", 30, 365, 90)
 
     if selected_ticker:
@@ -1053,7 +1059,8 @@ with tab8:
         selected_swing_ticker = st.selectbox(
             "Select stock for detailed swing analysis",
             swing_df["Ticker"].head(20),
-            key="swing_ticker"
+            key="swing_ticker",
+            format_func=lambda t: f"{TICKER_NAMES.get(t, t)} ({t})"
         )
 
         if selected_swing_ticker:
@@ -1141,7 +1148,10 @@ with tab9:
 
     col1, col2 = st.columns([2, 1])
     with col1:
-        log_ticker = st.selectbox("Select Stock", filtered_tickers, key="price_log_ticker")
+        log_ticker = st.selectbox(
+            "Select Stock", filtered_tickers, key="price_log_ticker",
+            format_func=lambda t: f"{TICKER_NAMES.get(t, t)} ({t})"
+        )
     with col2:
         st.write("")
         if st.button("🔄 Refresh Data", key="refresh_log"):
