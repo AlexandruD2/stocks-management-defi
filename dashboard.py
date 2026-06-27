@@ -1164,6 +1164,7 @@ with tab9:
                 columns=["Date", "Open", "Close", "High", "Low", "Volume"]
             )
             recent_df = recent_df.sort_values("Date")
+            recent_df["Day's Range"] = recent_df["High"] - recent_df["Low"]
 
             # Calculate 52-week range from all available data
             if all_prices and len(all_prices) > 0:
@@ -1263,9 +1264,10 @@ with tab9:
 
             col1, col2, col3, col4 = st.columns(4)
 
-            avg_daily_range = recent_df["Day's Range"].mean()
-            max_daily_range = recent_df["Day's Range"].max()
-            min_daily_range = recent_df["Day's Range"].min()
+            daily_range = recent_df["High"] - recent_df["Low"]
+            avg_daily_range = daily_range.mean()
+            max_daily_range = daily_range.max()
+            min_daily_range = daily_range.min()
             avg_volume = recent_df["Volume"].mean()
 
             with col1:
