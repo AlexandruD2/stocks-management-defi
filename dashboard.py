@@ -1073,10 +1073,11 @@ with tab8:
                     odf["H_vs_O_pct"] = (odf["High"] - odf["Open"]) / odf["Open"] * 100
                     odf["H_vs_O_usd"] = odf["High"] - odf["Open"]
 
+                    last_close = odf["Close"].dropna()
                     row = {
                         "Ticker": ticker,
                         "Company": TICKER_NAMES.get(ticker, ticker),
-                        "Last Price": odf["Close"].iloc[-1],
+                        "Last Price": last_close.iloc[-1] if not last_close.empty else None,
                     }
                     for window in [5, 10, 15, 20, 25, 30]:
                         pct_tail = odf["H_vs_O_pct"].tail(window)
@@ -1113,7 +1114,9 @@ with tab8:
             opp_df = opp_df[["Rank", "Ticker", "Company", "Last Price"] + window_cols_ordered + ["Best Window", "Peak Avg $", "Peak Avg %"]]
 
             opp_display = opp_df.copy()
-            opp_display["Last Price"] = opp_display["Last Price"].apply(lambda x: f"${x:.2f}")
+            opp_display["Last Price"] = opp_display["Last Price"].apply(
+                lambda x: f"${x:.2f}" if pd.notna(x) else "N/A"
+            )
             for w in [5, 10, 15, 20, 25, 30]:
                 opp_display[f"{w}D Avg $"] = opp_display[f"{w}D Avg $"].apply(
                     lambda x: f"${x:.2f}" if pd.notna(x) else "N/A"
