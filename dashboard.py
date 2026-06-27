@@ -1196,9 +1196,14 @@ with tab9:
             display_log["52W Low"] = week_52_low
             display_log["52W Range"] = week_52_high - week_52_low
 
+            # Intraday growth metrics
+            display_log["High vs Open %"] = (display_log["High"] - display_log["Open"]) / display_log["Open"] * 100
+            display_log["Close vs Open %"] = (display_log["Close"] - display_log["Open"]) / display_log["Open"] * 100
+
             # Reorder columns for display
             display_log = display_log[[
-                "Date", "Previous Close", "Open", "High", "Low",
+                "Date", "Previous Close", "High", "Open", "Low", "Close",
+                "High vs Open %", "Close vs Open %",
                 "Day's Range", "52W High", "52W Low", "52W Range", "Volume"
             ]]
 
@@ -1206,9 +1211,14 @@ with tab9:
             log_display = display_log.copy()
             log_display["Date"] = log_display["Date"].astype(str)
             log_display["Previous Close"] = log_display["Previous Close"].apply(lambda x: f"${x:.2f}" if pd.notna(x) else "N/A")
-            log_display["Open"] = log_display["Open"].apply(lambda x: f"${x:.2f}")
             log_display["High"] = log_display["High"].apply(lambda x: f"${x:.2f}")
+            log_display["Open"] = log_display["Open"].apply(lambda x: f"${x:.2f}")
             log_display["Low"] = log_display["Low"].apply(lambda x: f"${x:.2f}")
+            log_display["Close"] = log_display["Close"].apply(lambda x: f"${x:.2f}")
+            log_display["High vs Open %"] = log_display["High vs Open %"].apply(lambda x: f"▲ +{x:.2f}%")
+            log_display["Close vs Open %"] = log_display["Close vs Open %"].apply(
+                lambda x: f"▲ +{x:.2f}%" if x >= 0 else f"▼ {x:.2f}%"
+            )
             log_display["Day's Range"] = log_display["Day's Range"].apply(lambda x: f"${x:.2f}")
             log_display["52W High"] = log_display["52W High"].apply(lambda x: f"${x:.2f}")
             log_display["52W Low"] = log_display["52W Low"].apply(lambda x: f"${x:.2f}")
